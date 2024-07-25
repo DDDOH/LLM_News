@@ -1,3 +1,8 @@
-We will update code soon.
+Code for LOLA_ LLM-Assisted Online Learning Algorithm for Content Experiments.
 
-SSRN Link: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4851778
+We will clean the code, add instruction for setting python environment, as well as upload dataset needed soon.
+
+
+
+
+

@@ -30,6 +30,7 @@ The original dataset we used is https://osf.io/jd64p/.
 The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com/datasets/shuffleofficial/lola-llm-assisted-online-learning-algorithm), or use the kaggle CLI command:
 `kaggle datasets download -d shuffleofficial/lola-llm-assisted-online-learning-algorithm`
 
+
 - For data processing
 	- Code Path `Upworthy Data Processing.ipynb`
 	- Running this code will generate a csv file named `winner-all.csv`
@@ -45,5 +46,7 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 	- Data used: `all_test_headline_embed_3072.csv`
 
 
+- Survey Results
+	- Code and data path `Survey`
 
 

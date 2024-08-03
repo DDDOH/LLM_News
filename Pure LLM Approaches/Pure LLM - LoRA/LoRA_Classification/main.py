@@ -1,0 +1,431 @@
+# allow DISABLE LORA
+# modified from https://huggingface.co/docs/transformers/en/tasks/sequence_classification
+
+
+# pip install datasets
+# pip install peft
+# pip install evaluate
+# pip install transformers -U
+# pip install -U scikit-learn
+# pip install -U matplotlib
+# pip install progressbar2
+
+# pip install -U "huggingface_hub[cli]"
+# echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc
+# huggingface-cli login
+# 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
+
+from datasets import load_dataset
+import pandas as pd
+
+import torch
+import pandas as pd
+from sklearn.model_selection import GroupShuffleSplit
+from peft import (
+        get_peft_model, 
+        prepare_model_for_kbit_training, 
+        LoraConfig
+    )
+from transformers import TrainerCallback
+import time
+import pickle
+import os
+import shutil
+import evaluate
+import numpy as np
+import matplotlib.pyplot as plt
+import argparse
+
+import utils
+
+DEVICE = 'cuda:0' # 'cuda:0' or 'cuda:1'
+LORA = True
+DEBUG = False # if debug, use only few data
+
+MODEL = 'llama3' # bert or llama3
+# bert for distilbert-base-uncased
+# llama for meta-llama/Meta-Llama-3-8B
+
+## Data Config
+# DATA = 'news' # 'imdb' or 'news'
+SPLITION = 'strict' # 'strict' or 'loose'
+# if strict, use Hua's code, if loose, use my original code
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--ratio", type=float, default=0, help="Ratio for training data")
+args = parser.parse_args()
+
+
+RATIO = args.ratio
+# the 'winner-all.csv' contains all pairs.
+# We first construct the fixed test set:
+# set p threshold to 0.05, keep all pairs with p < 0.05.
+# then select 20% of the pairs as the test set. Use random_state = 42.
+# then we remove the test set from winner-all.csv, call this as ALL_TRAIN
+# ratio means the ratio of the ALL_TRAIN for training.
+
+result_dir = '/root/autodl-tmp/tmp_results'
+time_str = time.strftime("%Y%m%d-%H%M%S")
+result_dir = result_dir + '/' + time_str
+finetuned_model_dir = os.path.join(result_dir, 'finetuned_model')
+print('result_dir', result_dir)
+
+# create folder
+os.makedirs(result_dir)
+os.makedirs(finetuned_model_dir)
+
+# copy current python file to the result folder
+shutil.copy('main.py', result_dir)
+shutil.copy('utils.py', result_dir)
+# shutil.copy('README.md', result_dir)
+
+
+log_file_path = 'Split_{} Model_{} Lora_{} RATIO{}.pkl'.format(SPLITION, MODEL, LORA, RATIO)
+log_file_path = os.path.join(result_dir, log_file_path)
+
+
+# There are two fields in this dataset:
+# 
+# - `text`: the movie review text.
+# - `label`: a value that is either `0` for a negative review or `1` for a positive review.
+
+
+data = utils.load_data(SPLITION, RATIO, DEBUG)
+# size of test set should be 5624
+
+
+# ## Preprocess
+# The next step is to load a DistilBERT tokenizer to preprocess the `text` field:
+from transformers import AutoTokenizer
+if MODEL == 'bert':
+    tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+elif MODEL == 'llama3':
+    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
+    tokenizer.pad_token = tokenizer.eos_token
+
+
+# Create a preprocessing function to tokenize `text` and truncate sequences to be no longer than DistilBERT's maximum input length:
+def preprocess_function(examples):
+    return tokenizer(examples["headline_1"], examples["headline_2"], truncation=True)
+
+# if DATA == 'imdb':
+#     encoded_dict = preprocess_function(data['train'][0])
+# elif DATA == 'news':
+encoded_dict = preprocess_function(data['train'][0])
+
+print(encoded_dict)
+print(tokenizer.decode(encoded_dict['input_ids']))
+
+# To apply the preprocessing function over the entire dataset, use 🤗 Datasets [map](https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.Dataset.map) function. You can speed up `map` by setting `batched=True` to process multiple elements of the dataset at once:
+
+# if DATA == 'imdb':
+#     tokenized_imdb = data.map(preprocess_function, batched=True)
+# elif DATA == 'news':
+tokenized_news = data.map(preprocess_function, batched=True)
+
+# Now create a batch of examples using [DataCollatorWithPadding](https://huggingface.co/docs/transformers/main/en/main_classes/data_collator#transformers.DataCollatorWithPadding). It's more efficient to *dynamically pad* the sentences to the longest length in a batch during collation, instead of padding the whole dataset to the maximum length.
+from transformers import DataCollatorWithPadding
+data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+
+# ## Evaluate
+# Including a metric during training is often helpful for evaluating your model's performance. You can quickly load a evaluation method with the 🤗 [Evaluate](https://huggingface.co/docs/evaluate/index) library. For this task, load the [accuracy](https://huggingface.co/spaces/evaluate-metric/accuracy) metric (see the 🤗 Evaluate [quick tour](https://huggingface.co/docs/evaluate/a_quick_tour) to learn more about how to load and compute a metric):
+
+
+accuracy = evaluate.load("accuracy")
+
+# Then create a function that passes your predictions and labels to [compute](https://huggingface.co/docs/evaluate/main/en/package_reference/main_classes#evaluate.EvaluationModule.compute) to calculate the accuracy:
+
+
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.argmax(predictions, axis=1)
+    return accuracy.compute(predictions=predictions, references=labels)
+
+# Your `compute_metrics` function is ready to go now, and you'll return to it when you setup your training.
+
+# ## Train
+# Before you start training your model, create a map of the expected ids to their labels with `id2label` and `label2id`:
+
+# if DATA == 'imdb':
+    # id2label = {0: "NEGATIVE", 1: "POSITIVE"}
+    # label2id = {"NEGATIVE": 0, "POSITIVE": 1}
+# elif DATA == 'news':
+id2label = {0: "1 better", 1: "2 better"}
+label2id = {"1 better": 0, "1 better": 1}
+
+
+# <Tip>
+# 
+# If you aren't familiar with finetuning a model with the [Trainer](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer), take a look at the basic tutorial [here](https://huggingface.co/docs/transformers/main/en/tasks/../training#train-with-pytorch-trainer)!
+# 
+# </Tip>
+# 
+# You're ready to start training your model now! Load DistilBERT with [AutoModelForSequenceClassification](https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoModelForSequenceClassification) along with the number of expected labels, and the label mappings:
+
+
+from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer
+
+
+
+if MODEL == 'bert':
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "distilbert-base-uncased", num_labels=2, id2label=id2label, label2id=label2id
+    )
+elif MODEL == 'llama3':
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "meta-llama/Meta-Llama-3-8B", num_labels=2, id2label=id2label, label2id=label2id, device_map = DEVICE,
+        from_pretrained=False
+    )
+    model.config.pad_token_id = model.config.eos_token_id
+
+
+    if LORA:
+        # the config for two pkls in 24-5-17 folder:
+        # config = LoraConfig(
+        #     r=16, # 32 oob
+        #     lora_alpha=32, # 64 oob
+        #     target_modules=["q_proj", "v_proj"],
+        #     lora_dropout=0.05,
+        #     bias="none",
+        #     task_type="CAUSAL_LM"
+        # )
+        config = LoraConfig(
+            r=4, # 32 oob
+            lora_alpha=4, # 64 oob
+            target_modules=["q_proj", "v_proj"],
+            lora_dropout=0.3,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+
+        model = get_peft_model(model, config)
+
+        model.print_trainable_parameters()
+    else:
+        print('SKIP LORA')
+
+
+# # run the model on a few examples to see the predictions before training
+# if DATA == 'imdb':
+#     outputs = model(**tokenized_imdb["train"][:2])
+# elif DATA == 'news':
+#     outputs = model(**tokenized_news["train"][:2])
+#     # model(**preprocess_function(news['train'][:3]))
+
+
+
+# print output before training, set to inference mode
+model.eval()
+inputs = tokenizer("Your input text goes here", "Your input text goes here", return_tensors="pt", padding=True, truncation=True)
+
+# get device of the model
+device = model.device
+inputs = {key: value.to(device) for key, value in inputs.items()}
+
+outputs = model(**inputs)
+
+# Extract the logits or classification result
+logits = outputs.logits
+predictions = torch.argmax(logits, dim=-1)
+
+print(f"Logits: {logits}")
+print(f"Predicted class: {predictions.item()}")
+
+
+# At this point, only three steps remain:
+# 
+# 1. Define your training hyperparameters in [TrainingArguments](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments). The only required parameter is `output_dir` which specifies where to save your model. You'll push this model to the Hub by setting `push_to_hub=True` (you need to be signed in to Hugging Face to upload your model). At the end of each epoch, the [Trainer](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer) will evaluate the accuracy and save the training checkpoint.
+# 2. Pass the training arguments to [Trainer](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer) along with the model, dataset, tokenizer, data collator, and `compute_metrics` function.
+# 3. Call [train()](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer.train) to finetune your model.
+
+
+if MODEL == 'bert':
+    training_args = TrainingArguments(
+        output_dir=finetuned_model_dir,
+        learning_rate=2e-5,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=2,
+        weight_decay=0.01,
+        evaluation_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        push_to_hub=False,
+        save_total_limit=3,
+    )
+elif MODEL == 'llama3':
+    training_args = TrainingArguments(
+        output_dir=finetuned_model_dir,
+        learning_rate=2e-5,
+        per_device_train_batch_size=16, # 不加lora的话，调到1了还是会显存爆炸
+        per_device_eval_batch_size=16,
+        auto_find_batch_size=False,
+        fp16=True, # speed up significantly
+        num_train_epochs=10,
+        weight_decay=0.05,
+        evaluation_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        push_to_hub=False,
+        save_total_limit=3,
+    )
+
+
+# if DATA == 'imdb':
+    # trainer = Trainer(
+    #     model=model,
+    #     args=training_args,
+    #     train_dataset=tokenized_imdb["train"],
+    #     eval_dataset=tokenized_imdb["test"],
+    #     tokenizer=tokenizer,
+    #     data_collator=data_collator,
+    #     compute_metrics=compute_metrics,
+    # )
+# elif DATA == 'news':
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_news["train"],
+    eval_dataset=tokenized_news["test"],
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+
+# print trainer learning rate schedule
+print(trainer.lr_scheduler)
+
+
+
+self_logger = {'train_loss_rec': [],
+    'test_loss_rec': [],
+    'train_accuracy_rec': [],
+    'test_accuracy_rec': [],
+    'time_stamp_rec': [],
+    'epoch_rec': [],
+    'global_step_rec': []}
+
+
+def plot_log(fig_file_path, data):
+    plt.figure(figsize=(10, 6))
+    plt.subplot(211)
+    plt.plot(data['epoch_rec'], data['train_loss_rec'], label='train_loss')
+    plt.plot(data['epoch_rec'], data['test_loss_rec'], label='test_loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.legend()
+
+    plt.subplot(212)
+    plt.plot(data['epoch_rec'], data['train_accuracy_rec'], label='train_acc')
+    plt.plot(data['epoch_rec'], data['test_accuracy_rec'], label='test_acc')
+    for i in range(len(data['epoch_rec'])):
+        plt.text(data['epoch_rec'][i], data['train_accuracy_rec'][i], f"{data['train_accuracy_rec'][i]:.3f}", ha='center', va='bottom')
+        plt.text(data['epoch_rec'][i], data['test_accuracy_rec'][i], f"{data['test_accuracy_rec'][i]:.3f}", ha='center', va='bottom')
+    plt.hlines(0.85, 0, len(data['epoch_rec'])-1, linestyles='dashed', colors='r', label='85%')
+    plt.hlines(0.8243, 0, len(data['epoch_rec'])-1, linestyles='dashed', colors='g', label='82.43%', alpha=0.5)
+    plt.ylim(0.75, 1)
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.savefig(fig_file_path)
+    plt.close('all')
+
+print('\nperformance before training ###########')
+
+# if DATA == 'imdb':
+    # print(trainer.evaluate(tokenized_imdb["test"]))
+# elif DATA == 'news':
+print('Performance on test')
+_ = trainer.evaluate(tokenized_news["test"])
+self_logger['test_loss_rec'].append(_['eval_loss'])
+self_logger['test_accuracy_rec'].append(_['eval_accuracy'])
+print(_)
+
+print('Performance on train')
+_ = trainer.evaluate(tokenized_news["train"])
+self_logger['train_loss_rec'].append(_['eval_loss'])
+self_logger['train_accuracy_rec'].append(_['eval_accuracy'])
+print(_)
+
+self_logger['time_stamp_rec'].append(time.time())
+self_logger['epoch_rec'].append(0)
+self_logger['global_step_rec'].append(0)
+
+plot_log(log_file_path.replace('.pkl', '.png'), self_logger)
+
+class TrainingCallback(TrainerCallback):
+    def on_epoch_end(self, args, state, control, **kwargs):
+        logs = {}
+        print('Now running self defined callback')
+
+        print('Now evaluate on train dataset')
+        train_metrics = trainer.evaluate(eval_dataset=tokenized_news["train"])
+
+        print('Now evaluate on test dataset')
+        test_metrics = trainer.evaluate(eval_dataset=tokenized_news["test"])
+
+        self_logger['train_loss_rec'].append(train_metrics['eval_loss'])
+        self_logger['test_loss_rec'].append(test_metrics['eval_loss'])
+        self_logger['train_accuracy_rec'].append(train_metrics['eval_accuracy'])
+        self_logger['test_accuracy_rec'].append(test_metrics['eval_accuracy'])
+        self_logger['time_stamp_rec'].append(time.time())
+        self_logger['epoch_rec'].append(state.epoch)
+        self_logger['global_step_rec'].append(state.global_step)
+
+
+        logs['train_loss'] = train_metrics['eval_loss']
+        logs['train_accuracy'] = train_metrics['eval_accuracy']
+        logs['test_loss'] = test_metrics['eval_loss']
+        logs['test_accuracy'] = test_metrics['eval_accuracy']
+        trainer.log(logs)
+        print('the log is printed as', logs)
+
+        # save self_logger to pickle
+        with open(log_file_path, 'wb') as f:
+            pickle.dump(self_logger, f)
+
+        # plot the log
+        plot_log(log_file_path.replace('.pkl', '.png'), self_logger)
+
+
+
+trainer.add_callback(TrainingCallback())
+
+print('\ntraining model ###########')
+trainer.train()
+
+os.mkdir(os.path.join(finetuned_model_dir, 'final'))
+# trainer.save_model(os.path.join(finetuned_model_dir, 'final'))
+model.save_pretrained(os.path.join(finetuned_model_dir, 'final'))
+
+
+# run inference on test set, using the latest model
+model.eval()
+model = model.to(DEVICE)
+inputs = tokenizer(data['test']['headline_1'], data['test']['headline_2'], return_tensors="pt", padding=True, truncation=True)
+inputs = {key: value.to(DEVICE) for key, value in inputs.items()}
+
+predictions = []
+for i in range(0, len(data['test']['headline_1']), 16):
+    batch_inputs = {key: value[i:i+16] for key, value in inputs.items()}
+    batch_outputs = model(**batch_inputs)
+    batch_logits = batch_outputs.logits
+    batch_predictions = torch.argmax(batch_logits, dim=-1).cpu().numpy().tolist()
+    predictions += batch_predictions
+
+n_matched = sum(np.array(data['test']['label']) == np.array(predictions))
+print('####### matched ratio:', n_matched / len(data['test']['label']))
+
+# outputs = model(**inputs)
+# logits = outputs.logits
+# predictions = torch.argmax(logits, dim=-1)
+
+# save the predictions to a csv file
+result = pd.DataFrame({'headline_1': data['test']['headline_1'], 'headline_2': data['test']['headline_2'], 'higher_CTR': data['test']['label'], 'predictions': predictions})
+
+# save result to csv
+result.to_csv(os.path.join(result_dir, 'result.csv'))

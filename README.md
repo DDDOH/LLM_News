@@ -34,15 +34,15 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 	- Code Path `Upworthy Data Processing.ipynb`
 	- Running this code will generate a csv file named `winner-all.csv`
 	- Data used:  `upworthy-archive-holdout-packages-03.12.2020.csv`,  `upworthy-archive-exploratory-packages-03.12.2020.csv` and `upworthy-archive-confirmatory-packages-03.12.2020.csv` (these data are downloaded from https://osf.io/jd64p/)
-- For Predicting CTR using OpenAI Embedding
-	- Code Path `LOLA/LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
-	- Data used: `all_test_headline_embed_3072.csv`
-- For Classification using OpenAI and Word2Vec Embedding
-	- Code Path `Pure LLM Approaches/Pure LLM - Embedding/Embedding (OpenAI&Word2Vec) Classification.ipynb`
-	- Data used: `selected_pairs_df_005_256.csv` and `selected_pairs_df_005_3072.csv`
 - For Prompt Engineering Method
 	- Code Path `Pure LLM Approaches/Pure LLM - Prompt/Prompt-based Approaches.ipynb`
 	- Data used `winner-all.csv`
+- For Classification using OpenAI and Word2Vec Embedding
+	- Code Path `Pure LLM Approaches/Pure LLM - Embedding/Embedding (OpenAI&Word2Vec) Classification.ipynb`
+	- Data used: `selected_pairs_df_005_256.csv` and `selected_pairs_df_005_3072.csv`
+- For Predicting CTR using OpenAI Embedding
+	- Code Path `LOLA/LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
+	- Data used: `all_test_headline_embed_3072.csv`
 
 
 

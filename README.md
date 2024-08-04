@@ -16,9 +16,8 @@ pip install -U matplotlib
 pip install progressbar2
 pip install openai
 
-# to download the Llama3 model, register on huggingface for access to the model and then run the following command
+# to download the Llama-3 model (only needed for fine-tuning Llama-3), register on huggingface for access to the model and then run the following command
 pip install -U "huggingface_hub[cli]"
-echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc
 huggingface-cli login
 # type in your huggingface credentials
 ```

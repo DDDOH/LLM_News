@@ -18,7 +18,7 @@ pip install openai
 
 # to download the Llama3 model, register on huggingface for access to the model and then run the following command
 pip install -U "huggingface_hub[cli]"
-echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc # for faster downloads in China
+echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc
 huggingface-cli login
 # type in your huggingface credentials
 ```

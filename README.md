@@ -6,6 +6,7 @@ We recommend using conda and pip to manage the environment. To set up the enviro
 
 ``` python
 conda create --name lola
+conda activate lola
 conda install pip
 pip install datasets
 pip install peft
@@ -47,5 +48,4 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 
 - Survey Results
 	- Code and data path `Survey`
-
 

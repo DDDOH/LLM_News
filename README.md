@@ -25,7 +25,7 @@ huggingface-cli login
 
 
 # Reproducing the Results
-We save some intermediate result to reproduce the results in the paper. Use these intermediate results can save time for OpenAI API calls, finetuning the model.
+We save some intermediate result to reproduce the results in the paper. Use these intermediate results can save time by skipping OpenAI API calls and finetuning the model.
 
 ## For Prompt Engineering Method
 run `Pure LLM - Prompt/visualize_result.py`, this will generate mean_differences_heatmap_multiple.pdf and p_values_heatmap_multiple.pdf.

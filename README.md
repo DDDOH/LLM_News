@@ -60,9 +60,9 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 - For Classification using OpenAI and Word2Vec Embedding
 	- Code Path `Pure LLM Approaches/Pure LLM - Embedding/Embedding (OpenAI&Word2Vec) Classification.ipynb`
 	- Data used: `selected_pairs_df_005_256.csv` and `selected_pairs_df_005_3072.csv`
-- For Predicting CTR using OpenAI Embedding
-	- Code Path `LOLA/LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
-	- Data used: `all_test_headline_embed_3072.csv`
+- For LOLA
+	- Code Path `LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
+	- Data used: `LoRA CTR.csv` and `simulation_results_regret_min`
 
 
 - Survey Results

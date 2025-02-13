@@ -1,2 +1,0 @@
-T,z_ucb1,z_ucb2,best_ratio,ab_result,no_bandit_result,ucb1_result,one_ucb_result,ucb2_result,ts_result,ts_llm_result
-50,0.08,0.08,0.2,[8. 6. 3. ... 1. 0. 5.],[7 9 3 ... 0 1 3],[4. 6. 2. ... 0. 1. 3.],[7. 9. 3. ... 0. 1. 3.],[7. 6. 3. ... 0. 1. 3.],[3. 9. 3. ... 0. 1. 2.],[7. 8. 3. ... 0. 1. 2.]

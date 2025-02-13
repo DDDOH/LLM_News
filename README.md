@@ -23,6 +23,23 @@ huggingface-cli login
 # type in your huggingface credentials
 ```
 
+
+# Reproducing the Results
+We save some intermediate result to reproduce the results in the paper. Use these intermediate results can save time for OpenAI API calls, finetuning the model.
+
+## For Prompt Engineering Method
+run `Pure LLM - Prompt/visualize_result.py`, this will generate mean_differences_heatmap_multiple.pdf and p_values_heatmap_multiple.pdf.
+
+## For Embedding Method
+run `Pure LLM - Embedding/predict_with_embedding.py`
+
+## For Finetuning
+run `Finetune CTR Prediction/plot.py`
+
+
+
+Below are the steps to run all the code, from getting intermediate results to getting final result.
+
 # Dataset and Code
 
 The original dataset we used is https://osf.io/jd64p/.

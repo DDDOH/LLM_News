@@ -15,6 +15,15 @@ SPLIT_BY_TIME = False # if True, load the original data from the LoRA_CTR_test a
 
 DEBUG = False # if True, only process the first 1000 headlines
 
+if MODEL == 'OpenAI':
+    # to access OpenAI API in China, open VPN first and then set the proxy
+    import os
+    
+    # run the following code in the terminal use python3
+    # export http_proxy=http://127.0.0.1:1087;export https_proxy=http://127.0.0.1:1087;
+    os.environ["http_proxy"] = "http://127.0.0.1:1087"
+    os.environ["https_proxy"] = "http://127.0.0.1:1087"
+
 
 if SPLIT_BY_TIME:
     result_dir = os.path.join('Pure LLM - Embedding/saved_embedding', MODEL + '_split_by_time')
@@ -63,24 +72,28 @@ if not os.path.exists(result_dir):
     else:
         ori_test = pd.read_csv('Code Dataset/LoRA_CTR_test.csv')
         ori_train = pd.read_csv('Code Dataset/LoRA_CTR_train.csv')
+        ori_calibration = pd.read_csv('Code Dataset/LoRA_CTR_calibration.csv')
         
 
-        
         # remove Unnamed: 0 column from the dataframe
         ori_test = ori_test.drop(columns=['Unnamed: 0'])
         ori_train = ori_train.drop(columns=['Unnamed: 0'])
+        # ori_calibration = ori_calibration.drop(columns=['Unnamed: 0'])
 
         # drop rows with nan values
         ori_test = ori_test.dropna()
         ori_train = ori_train.dropna()
+        ori_calibration = ori_calibration.dropna()
 
         # add a title_id column to the dataframe
         ori_test['title_id'] = ori_test.index
         ori_train['title_id'] = ori_train.index
+        ori_calibration['title_id'] = ori_calibration.index
 
         # add embedding column to the dataframe
         ori_test['embedding'] = np.empty((len(ori_test), 0)).tolist()
         ori_train['embedding'] = np.empty((len(ori_train), 0)).tolist()
+        ori_calibration['embedding'] = np.empty((len(ori_calibration), 0)).tolist()
 
         # save dataframe to result_dir as a npy file
         columns = ori_test.columns.tolist()
@@ -88,6 +101,7 @@ if not os.path.exists(result_dir):
         os.makedirs(result_dir)
         np.save(os.path.join(result_dir, 'test.npy'), ori_test)
         np.save(os.path.join(result_dir, 'train.npy'), ori_train)
+        np.save(os.path.join(result_dir, 'calibration.npy'), ori_calibration)
         np.save(os.path.join(result_dir, 'columns.npy'), columns)
 
 
@@ -205,13 +219,14 @@ def get_embedding_llama(data_name):
 if MODEL == 'OpenAI':
     # get openai embedding for each headline
     from openai import OpenAI
-    client = OpenAI(api_key="OPENAIKEY")
+    client = OpenAI(api_key="YOUR_API_KEY")
 
     if SPLIT_BY_TIME:
         get_embedding_parallel('all_data')
     else:
         get_embedding_parallel('test')
         get_embedding_parallel('train')
+        get_embedding_parallel('calibration')
 
 elif MODEL in ['Word2Vec256', 'Word2Vec3072']:
     # for Word2Vec

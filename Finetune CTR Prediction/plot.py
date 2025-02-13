@@ -43,7 +43,8 @@ plt.plot(epoch_rec_ls[0], mean, label='Training Loss')
 
 ub, lb, mean = get_CI(test_loss_rec_ls)
 # plt.fill_between(epoch_rec_ls[0], ub, lb, alpha=0.5, label='Test Loss')
-plt.semilogy(epoch_rec_ls[0], mean, label='Test Loss')
+# plt.semilogy(epoch_rec_ls[0], mean, label='Test Loss')
+plt.plot(epoch_rec_ls[0], mean, label='Test Loss')
 plt.xticks(np.arange(0, x_max + 1, 1))
 
 plt.ylabel('Mean Squared Error')

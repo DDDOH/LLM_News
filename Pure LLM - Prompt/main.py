@@ -11,11 +11,27 @@ import time
 
 DEBUG = False
 
+# to access OpenAI API in China, open VPN first and then set the proxy
+import os
+
+# run the following code in the terminal use python3
+# export http_proxy=http://127.0.0.1:1087;export https_proxy=http://127.0.0.1:1087;
+os.environ["http_proxy"] = "http://127.0.0.1:1087"
+os.environ["https_proxy"] = "http://127.0.0.1:1087"
+
+
 # load dataset
 all_train = pd.read_csv("Code Dataset/LoRA_CTR_train.csv")
-all_test = pd.read_csv("Code Dataset/LoRA_CTR_test.csv")
 
-result_path = 'Pure LLM - Prompt/prompt-results temperature zero/result_gpt.npy'
+test_on_test = False # if True, test on test data, otherwise test on calibration data
+if test_on_test:
+    all_test = pd.read_csv("Code Dataset/LoRA_CTR_test.csv")
+    result_path = 'Pure LLM - Prompt/prompt-results temperature zero/result_gpt_test.npy'
+else:
+    all_test = pd.read_csv("Code Dataset/LoRA_CTR_calibration.csv")
+    result_path = 'Pure LLM - Prompt/prompt-results temperature zero/result_gpt_calibration.npy'
+
+
 # if folder does not exist, create it
 if not os.path.exists(os.path.dirname(result_path)):
     os.makedirs(os.path.dirname(result_path))
@@ -112,30 +128,36 @@ print('Random guess accuracy on all test data: ', n_correct_expected/len(all_tes
 
 # run Prompt Based Method on both significant and insignificant test data
 
-
-test_combination = [
-    # model name, is_flip, n_demo, test_sig
-    # is_flip: whether we give the correct answer to the model or not. 0 for correct, 1 for incorrect
-    ["gpt-3.5-turbo", 0, 0],  # zero-shot learning with significant samples
-    ["gpt-3.5-turbo", 0, 2],  # in-context learning
-    ["gpt-3.5-turbo", 1, 2],
-    ["gpt-3.5-turbo", 0, 5],
-    ["gpt-3.5-turbo", 1, 5],
-    ["gpt-4-turbo", 0, 0],
-    ["gpt-4-turbo", 0, 2],
-    ["gpt-4-turbo", 1, 2],
-    ["gpt-4-turbo", 0, 5],
-    ["gpt-4-turbo", 1, 5],
-    ["gpt-4o-2024-08-06", 0, 0],
-    ["gpt-4o-2024-08-06", 0, 2],
-    ["gpt-4o-2024-08-06", 1, 2],
-    ["gpt-4o-2024-08-06", 0, 5],
-    ["gpt-4o-2024-08-06", 1, 5],
-]
+if test_on_test:
+    test_combination = [
+        # model name, is_flip, n_demo, test_sig
+        # is_flip: whether we give the correct answer to the model or not. 0 for correct, 1 for incorrect
+        ["gpt-3.5-turbo", 0, 0],  # zero-shot learning with significant samples
+        ["gpt-3.5-turbo", 0, 2],  # in-context learning
+        ["gpt-3.5-turbo", 1, 2],
+        ["gpt-3.5-turbo", 0, 5],
+        ["gpt-3.5-turbo", 1, 5],
+        ["gpt-4-turbo", 0, 0],
+        ["gpt-4-turbo", 0, 2],
+        ["gpt-4-turbo", 1, 2],
+        ["gpt-4-turbo", 0, 5],
+        ["gpt-4-turbo", 1, 5],
+        ["gpt-4o-2024-08-06", 0, 0],
+        ["gpt-4o-2024-08-06", 0, 2],
+        ["gpt-4o-2024-08-06", 1, 2],
+        ["gpt-4o-2024-08-06", 0, 5],
+        ["gpt-4o-2024-08-06", 1, 5],
+    ]
+else:
+    test_combination = [
+        # model name, is_flip, n_demo
+        # is_flip: whether we give the correct answer to the model or not. 0 for correct, 1 for incorrect
+        ["gpt-4-turbo", 0, 5],
+    ]
 
 
 client = OpenAI(
-    api_key="OPENAIKEY"
+    api_key="YOUR_API_KEY"
 )  # need API key to acess GPT
 
 def predict_parallel(is_flip, model_name, n_demo):

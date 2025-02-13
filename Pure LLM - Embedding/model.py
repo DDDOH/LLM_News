@@ -30,7 +30,7 @@ class MLP(nn.Module):
     
 
 # train MLP to predict the CTR
-def train_mlp(X_train, y_train, X_test, y_test, news_id_train, news_id_test, sig_test_id, hidden_size=128, hidden_layer_num=1, dropout_rate=0.5, rate=2, DIM=256, lr=0.01, batch_size=10, epochs=1000):
+def train_mlp(X_train, y_train, X_test, y_test, X_cal, y_cal, news_id_train, news_id_test, news_id_cal, sig_test_id, hidden_size=128, hidden_layer_num=1, dropout_rate=0.5, rate=2, DIM=256, lr=0.01, batch_size=10, epochs=1000):
     model = MLP(hidden_size=hidden_size, hidden_layer_num=hidden_layer_num, dropout_rate=dropout_rate, rate=rate, DIM=DIM)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -72,9 +72,13 @@ def train_mlp(X_train, y_train, X_test, y_test, news_id_train, news_id_test, sig
         with torch.no_grad():
             y_pred_train = model(X_train).squeeze().detach().numpy()
             y_pred_test = model(X_test).squeeze().detach().numpy()
+            y_pred_cal = model(X_cal).squeeze().detach().numpy()
             acc_train = evaluate_select_acc(y_pred_train, y_train, news_id_train, sig_test_id, eval_sig=False)
             acc_test, sig_test_acc = evaluate_select_acc(y_pred_test, y_test, news_id_test, sig_test_id, eval_sig=True)
-            print(f'Train Accuracy: {acc_train}, Test Accuracy all: {acc_test}', f'Test Accuracy sig: {sig_test_acc}')
+            acc_cal = evaluate_select_acc(y_pred_cal, y_cal, news_id_cal, sig_test_id, eval_sig=False)
+            print(f'Train Accuracy: {acc_train}, Test Accuracy all: {acc_test}',
+                  f'Test Accuracy sig: {sig_test_acc}',
+                  f'Calibration Accuracy: {acc_cal}')
         
     
     return model
@@ -110,13 +114,17 @@ def evaluate_select_acc(y_pred, y_true, news_id, sig_test_id, eval_sig=False):
 
 
 
-def train_linear(X_train, y_train, X_test, y_test, news_id_train, news_id_test, sig_test_id):
+def train_linear(X_train, y_train, X_test, y_test, X_cal, y_cal, news_id_train, news_id_test, news_id_cal, sig_test_id):
     from sklearn.linear_model import LinearRegression
     model = LinearRegression()
     model.fit(X_train, y_train)
     y_pred_train = model.predict(X_train)
     y_pred_test = model.predict(X_test)
+    y_pred_cal = model.predict(X_cal)
     acc_train = evaluate_select_acc(y_pred_train, y_train, news_id_train, sig_test_id, eval_sig=False)
     acc_test, sig_test_acc = evaluate_select_acc(y_pred_test, y_test, news_id_test, sig_test_id, eval_sig=True)
-    print(f'Train Accuracy: {acc_train}, Test Accuracy all: {acc_test}', f'Test Accuracy sig: {sig_test_acc}')
-    return {'acc_all': acc_test, 'acc_sig': sig_test_acc, 'acc_train': acc_train, 'model': model}
+    acc_cal = evaluate_select_acc(y_pred_cal, y_cal, news_id_cal, sig_test_id, eval_sig=False)
+    print(f'Train Accuracy: {acc_train}, Test Accuracy all: {acc_test}',
+          f'Test Accuracy sig: {sig_test_acc}',
+          f'Calibration Accuracy: {acc_cal}')
+    return {'acc_all': acc_test, 'acc_sig': sig_test_acc, 'acc_train': acc_train, 'acc_cal': acc_cal, 'model': model}

@@ -37,10 +37,9 @@ run `Pure LLM - Embedding/predict_with_embedding.py`
 run `Finetune CTR Prediction/plot.py`
 
 ## For LOLA
-run Jupyter Notebook 'LOLA/LOLA - Regret Minimize/LOLA_regret_minimize.ipynb'
+run Jupyter Notebook `LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
 
-
-
+___
 Below are the steps to run all the code, from getting intermediate results to getting final result.
 
 # Dataset and Code

@@ -55,10 +55,11 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 	- Running this code will generate a csv file named `ctr-all.csv`, along with various data splits 
 	- Data used:  `upworthy-archive-holdout-packages-03.12.2020.csv`,  `upworthy-archive-exploratory-packages-03.12.2020.csv` and `upworthy-archive-confirmatory-packages-03.12.2020.csv` (these data are downloaded from https://osf.io/jd64p/)
 - For Prompt Engineering Method
-	- Code Path `Pure LLM Approaches/Pure LLM - Prompt/Prompt-based Approaches.ipynb`
+	- Code Path `Pure LLM Approaches/Pure LLM - Prompt/main.py` and `Pure LLM Approaches/Pure LLM - Prompt/visualize_result.py`
 	- Data used `winner-all.csv`
 - For Classification using OpenAI and Word2Vec Embedding
-	- Code Path `Pure LLM Approaches/Pure LLM - Embedding/Embedding (OpenAI&Word2Vec) Classification.ipynb`
+	- Run `Pure LLM - Embedding/get_embedding.py` to get the embedding for the dataset
+	- Run `Pure LLM - Embedding/predict_with_embedding.py` to get the classification result.
 	- Data used: `selected_pairs_df_005_256.csv` and `selected_pairs_df_005_3072.csv`
 - For LOLA
 	- Code Path `LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`

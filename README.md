@@ -57,9 +57,9 @@ The pre-processed dataset can be downloaded from [Kaggle](https://www.kaggle.com
 - For Prompt Engineering Method
 	- Code Path `Pure LLM Approaches/Pure LLM - Prompt/main.py` and `Pure LLM Approaches/Pure LLM - Prompt/visualize_result.py`
 	- Data used `winner-all.csv`
-- For Classification using OpenAI and Word2Vec Embedding
+- For CTR prediction using OpenAI and Word2Vec Embedding
 	- Run `Pure LLM - Embedding/get_embedding.py` to get the embedding for the dataset
-	- Run `Pure LLM - Embedding/predict_with_embedding.py` to get the classification result.
+	- Run `Pure LLM - Embedding/predict_with_embedding.py` to get the prediction result.
 	- Data used: `selected_pairs_df_005_256.csv` and `selected_pairs_df_005_3072.csv`
 - For LOLA
 	- Code Path `LOLA - Regret Minimize/LOLA_regret_minimize.ipynb`
